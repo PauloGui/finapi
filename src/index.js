@@ -1,4 +1,3 @@
-const { response } = require("express");
 const express = require("express");
 const { v4: uuidv4 } = require("uuid");
 
@@ -8,28 +7,28 @@ app.use(express.json());
 
 const customers = [];
 
-function verifyIfExistsAccountCPF(req, res, next) {
-  const { cpf } = req.headers;
+function verifyIfExistsAccountCPF(request, response, next) {
+  const { cpf } = request.headers;
 
-  const custumer = customers.find((custumer) => custumer.cpf === cpf);
-  if (!custumer) {
-    return res.status(400).json({ error: "Custumer not found" });
+  const customer = customers.find((customer) => customer.cpf === cpf);
+  if (!customer) {
+    return response.status(400).json({ error: "Custumer not found" });
   }
 
-  req.custumer = custumer;
+  request.customer = customer;
 
   return next();
 }
 
-app.post("/account", (req, res) => {
-  const { cpf, name } = req.body;
+app.post("/account", (request, response) => {
+  const { cpf, name } = request.body;
 
-  const custumerAlreadyExists = customers.some(
+  const customerAlreadyExists = customers.some(
     (customer) => customer.cpf === cpf
   );
 
-  if (custumerAlreadyExists) {
-    return res.status(400).json({ error: "Custumer already exists." });
+  if (customerAlreadyExists) {
+    return response.status(400).json({ error: "Custumer already exists." });
   }
 
   customers.push({
@@ -42,12 +41,29 @@ app.post("/account", (req, res) => {
   return response.status(201).send("sucess");
 });
 
-app.use(verifyIfExistsAccountCPF);
+// app.use(verifyIfExistsAccountCPF);
 
-app.get("/statement", (req, res) => {
-  const { custumer } = req;
+app.get("/statement", verifyIfExistsAccountCPF, (request, response) => {
+  const { customer } = request;
 
-  return res.json(custumer.statement);
+  return response.json(customer.statement);
+});
+
+app.post("/deposit", verifyIfExistsAccountCPF, (request, response) => {
+  const { description, amount } = request.body;
+
+  const { customer } = request;
+
+  const statementOperation = {
+    description,
+    amount,
+    created_at: new Date(),
+    type: "credit",
+  };
+
+  customer.statement.push(statementOperation);
+
+  return response.status(201).send();
 });
 
 app.listen(3333);
